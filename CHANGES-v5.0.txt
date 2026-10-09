@@ -1,0 +1,245 @@
+EasyCGTree 5.0 (2026-09-25) - changes from 4.3
+================================================
+
+Requested changes
+-----------------
+1. IQ-TREE model report fixed.
+   The best-fit model, log-likelihood and BIC are now read from the IQ-TREE report (.iqtree), which has the
+   same format in IQ-TREE 2 and 3. (IQ-TREE 3 no longer writes the table of tested models to the .log file,
+   so the old parser found nothing.) A model set with '-m' is reported as 'user-specified'.
+
+2. Lower-case sequences accepted.
+   The sequence type check now ignores case (v4.3 counted only upper-case A/C/G/T, so lower-case genomes were
+   taken as proteins). All sequences are converted to upper case and '\r' (Windows line ends) is removed before use.
+
+3. Missing or broken tree files stop the run immediately.
+   Every tree (supermatrix tree, each gene tree, consensus tree, supertree) is checked: it must exist, be
+   non-empty and contain a complete Newick tree. Exit codes of all programs are checked as well; a killed
+   process (e.g. out of memory) is reported as such. The error is written to the screen and the log file.
+
+4. Consensus tree by IQ-TREE ('-tree cs').
+   IQ-TREE '-con' (extended majority-rule consensus; support = percentage of gene trees) replaces consenseM,
+   which is no longer needed. The renaming step (SPE10001...) was removed: IQ-TREE and ASTRAL accept long names.
+   (The old renaming also used substring replacement, so names such as 'X-1' and 'X-11' could be mixed up.)
+   IQ-TREE is therefore needed for '-tree cs' even with '-tree_app fasttree'.
+
+5. New task 'predict' (CDS prediction) before 'hmmsearch'.
+   '-task hmmsearch' reuses the existing prediction, so several HMM sets can be tried without predicting again.
+   If no prediction exists yet, 'hmmsearch' runs it automatically (so Gene_Prevelence.pl still works).
+   Running 'hmmsearch' removes the older search results and everything derived from them, but keeps TEM0_CDS.
+
+6. Sequence type checks.
+   - All input files are checked before any prediction; with '-seq nucl', all protein files are listed at once.
+   - The input type of each genome is saved in '<input>_TEM/Genome_SeqType.txt'.
+   - '-task alignment -seq nucl' checks that every selected genome has CDS DNA sequences (.fnn) and explains,
+     genome by genome, whether it was provided as protein or its CDS DNA was not kept during the prediction.
+   - FastTree gets '-nt -gtr' automatically for nucleotide alignments (v4.3 ran them as proteins).
+
+7. Record of the tasks: '<input>_TEM/EasyCGTree_record.txt'.
+   Stores the HMM (name, file, MD5), E-value, cutoffs, sequence type, and when each task was done.
+   - refine/alignment/tree_infer stop if '-hmm' differs from the HMM used for the search, or if the HMM file
+     has changed since. Without '-hmm', the recorded HMM is used (so output names are correct).
+   - refine uses the recorded E-value by default.
+   - tree_infer warns if the alignments are older than the last hmmsearch/refine.
+   - TEM directories made by v4.x (no record) still work, with a warning.
+
+8. EasyCGTree can be called from any directory.
+   'bin', 'HMM' and 'tree_app-options.txt' are found relative to EasyCGTree.pl. The input directory can be
+   anywhere (paths with spaces are supported); all outputs go to the directory containing the input directory.
+   '-hmm' also accepts the path of a .hmm file.
+
+9. NCBI annotation files as input (new).
+   Files whose names contain the same assembly accession (GCF_/GCA_, e.g. 'GCF_000009925.1_ASM992v1_...')
+   belong to the same genome. The file type is recognized from the sequence headers, not from the file name:
+   - CDS DNA file with locus_tag ('cds_from_genomic.fna'): >=90% of the headers contain '[locus_tag=...]'.
+   - Protein file with locus_tag ('translated_cds.faa'): >=90% of the headers contain '[locus_tag=...]'.
+   - Protein file without locus_tag ('protein.faa'): e.g. '>WP_xxx.1 description [organism]'.
+   ('[old_locus_tag=...]' is not taken for the locus_tag.)
+   Rules for one assembly:
+   - protein (locus_tag) + CDS (locus_tag): the sequences are paired by locus_tag; at least 90% of the
+     proteins must have a CDS with the same locus_tag, otherwise EasyCGTree stops (the files probably belong
+     to different genomes). Only paired sequences are written, so the .faa and .fnn files correspond 1:1
+     (pseudogenes, which have no protein, are left out). No CDS prediction is needed.
+   - CDS (locus_tag) only: the CDS are translated with the genetic code 11 (start codon read as Met unless the
+     CDS is 5'-partial; final stop removed). Pseudogenes ('[pseudo=true]'), CDS whose length is not a multiple
+     of 3 and CDS with internal stop codons are skipped. If >10% of the CDS have internal TGA codons only,
+     EasyCGTree stops: the genome probably uses the genetic code 4 (e.g. Mycoplasma).
+   - protein without locus_tag + CDS: EasyCGTree stops and asks to delete the protein file (the files cannot
+     be paired; the CDS alone can be translated).
+   - genome ('genomic.fna') + annotation files: the annotation files are used, the genome is ignored (noted).
+   - genome + protein file(s) only: the genome is used for the CDS prediction, the proteins are ignored (noted).
+   - two files of the same kind for one assembly: EasyCGTree stops.
+   These genomes are named by their accession only ('GCF-000009925-1'), and the sequence IDs in both files are
+   the locus_tags, so the protein hits of hmmsearch find their DNA sequences for '-seq nucl'.
+   A single ordinary file (one genome or protein file) is renamed and named as before, even if its name
+   contains an accession. Input problems are reported before the old working directory is removed.
+   'Genome_SeqType.txt' now also lists the input type (nucl, prot, ncbi_pair, ncbi_cds), the source files and
+   the ignored files of each genome. The number of genomes (>=5) is counted per genome, not per file.
+   The 'datasets' command-line layout (files named 'protein.faa' etc. in sub-directories) is not supported:
+   the file names must contain the accession.
+
+Other fixes and changes
+-----------------------
+- One script for Linux, macOS and Windows: '.exe' is added on Windows, and rm/cp/mv are replaced by Perl code.
+  Programs are called without a shell. (Tested on Linux only.)
+- IQ-TREE output files are written directly to TEM7_GeneTrees ('-pre'); '-redo' is added so a re-run does
+  not silently keep old results.
+- '-gene_cutoff' range check fixed ('||' made it accept any value).
+- Gene names containing '_' (e.g. Pfam names in custom HMMs) are no longer cut in Step 4.
+- Smartmatch ('~~', removed in recent Perl versions) replaced.
+- Hidden files (e.g. macOS '.DS_Store') and sub-directories in the input directory are ignored.
+- Two input files that would be renamed to the same name are reported instead of overwritten.
+- hmmsearch screen output goes to the null device instead of memory.
+- Running time is computed correctly across days/months.
+- Only core Perl modules are used (Getopt::Long, File::Copy, File::Path, File::Basename, File::Spec, Cwd,
+  FindBin, Digest::MD5).
+
+Note on IQ-TREE 2.2.0 (bundled in v4.2)
+--------------------------------------
+With several threads it can fail with 'Tree taxa and alignment sequence do not match'. EasyCGTree 5.0 detects
+this and explains it. IQ-TREE 3.1.4 does not have this problem; to use it, put 'iqtree3' in 'bin' and change
+the IQ-TREE line in 'bin/tree_app-options.txt' to: IQ-TREE Command-line=iqtree3 --alrt 1000 -B 1000
+
+New companion script: EasyCGTree_SNP.pl (version 1.0)
+-----------------------------------------------------
+Put it in the EasyCGTree directory. It extracts SNPs from the core-gene nucleotide alignments of EasyCGTree
+and infers a SNP tree. Run 'perl EasyCGTree_SNP.pl -help' for all options.
+- Uses '<input>_TEM'. If nucleotide alignments made with the requested settings are missing, the needed
+  EasyCGTree tasks are run with '-seq nucl' (only from the first task that is needed: predict, hmmsearch,
+  refine or alignment). Settings not given are taken from the previous run.
+- SNP site: the considered strains show >=2 bases (A/C/G/T); at most '-max_missing' of them (default 0)
+  have a gap or ambiguous base. '-aln trimmed' (default) or 'original' (alignments before trimAl).
+- '-ignore': these strains do not influence which sites are SNPs, but are kept in the SNP alignment and tree.
+- Positions of every SNP: gene, position in the concatenation, in the trimmed and in the original gene
+  alignment (trimAl '-colnumbering'), alleles, missing data; with '-ref', the position in the reference
+  CDS and the codon position. A per-gene table lists the SNP range and original positions in order.
+- Tree: IQ-TREE (default; '-fconst' with the invariant A/C/G/T counts of the analysed alignment, or '+ASC'
+  with '-asc lewis') or FastTree. Output: '<input>.<hmm>.<genes>.snp.<tree_app>.tree', SNP alignment,
+  position tables and a pairwise SNP distance matrix.
+
+New companion script: EasyCGTree_SpecificSNP.pl (version 1.0)
+-------------------------------------------------------------
+Put it in the EasyCGTree directory. It writes the numbers of strain- and clade-specific SNPs into a tree:
+strain names get '_N', clades get 'N/support'. Run 'perl EasyCGTree_SpecificSNP.pl -help' for all options.
+- Uses the SNP alignment and positions of EasyCGTree_SNP.pl; if they are missing, EasyCGTree_SNP.pl (and,
+  through it, EasyCGTree) is run first. The SNP tree is annotated by default; '-tree' annotates another tree.
+- '-mode exclusive' (default): all strains of the group share a base that no other strain has.
+  '-mode strict': in addition all other strains share one base (only sites without missing data); the count
+  of each branch then does not depend on the rooting.
+- '-outgroup' roots the tree first (support values stay with their branches). Without it, the tree is used
+  as rooted in the file. 'SH-aLRT/UFBoot' labels are reduced to UFBoot.
+- Output: '<input>.<hmm>.<genes>.specific_snp.<tree_app>.tree', a tree with clade IDs (C1, C2, ...), the
+  positions of every specific SNP (as in 'snp_positions.txt') and a table of all strains and clades with
+  their support, SNP numbers, genes and original alignment positions, and members.
+
+BuildHMM.pl 5.0
+---------------
+- Can be called from any directory; the HMM database is written to the 'HMM' directory of EasyCGTree, the
+  summary, log and working directory next to the input directory. Core Perl modules only (List::MoreUtils
+  and '~~' removed); Windows-safe (no shell commands).
+- The input files are no longer renamed. Gene names come from the file names (white space and characters
+  such as ( ) / : are replaced by '-'); two files giving the same name are reported. '-n' gives each HMM
+  its name explicitly. New '-name' (database name) and '-force' (overwrite; otherwise an existing database
+  is never overwritten).
+- MUSCLE: v4.2 used '-super5' for every family (a value was fixed at 200). Now '-align' is used, and
+  '-super5' only for families with >= 1000 sequences ('-super5 <Int>').
+- All files are checked before anything is run: FASTA format, protein (not nucleotide) sequences, and with
+  '-aln' equal lengths. Sequences are cleaned (upper case, '*' removed or 'X'); duplicate IDs are renamed;
+  single-sequence families are built without alignment (with a warning for < 3 sequences).
+- The exit codes of MUSCLE and hmmbuild are checked. The finished database is tested with the 'hmmsearch'
+  of EasyCGTree: HMMs built by HMMER 3.1+ cannot be read by HMMER 3.0, so 'hmmbuild' and 'hmmsearch' in
+  'bin' must be of the same version (e.g. both HMMER 3.4).
+- New summary table '<gc>.BuildHMM_summary.txt': sequences, alignment method/length and HMM length per gene.
+
+Gene_Prevelence.pl 5.0
+----------------------
+- Can be called from any directory; uses the record of EasyCGTree 5.0. Existing HMM search results are used
+  only if they match '-hmm' (name and file content) and '-evalue'; otherwise the script stops, because a new
+  search replaces the later EasyCGTree results ('-force' to run it anyway). Without results, EasyCGTree
+  '-task hmmsearch' is run (including the CDS prediction if needed). v4 results are used with a warning.
+- v4.2 named the output after the default 'Unknown' HMM when '-hmm' was not given, and could label results
+  of one HMM with the name of another; fixed.
+- Hits are counted as in EasyCGTree (E-value, score >= HMM length / 4).
+- Output '<input>.<hmm>.*': gene_prevalence.txt (protein IDs, as before), gene_copies.txt (copy numbers),
+  gene_summary.txt (prevalence, single-/multi-copy genomes, genomes lacking the gene) and
+  genome_summary.txt (completeness, missing and multi-copy genes).
+- Preview of the EasyCGTree screening: how many genomes and genes pass '-genome_cutoff'/'-gene_cutoff'
+  (and '-tree cs'), computed as in EasyCGTree Task 2.
+
+Options for EasyCGTree_GUI (all five scripts)
+---------------------------------------------
+- '-options_json': prints the options of the script (name, type, default, allowed values, tasks) in JSON and
+  exits. The GUI uses it to check that the scripts and the GUI match. (JSON::PP: core module since Perl 5.14.)
+- '-dry_run' (EasyCGTree.pl): shows how the input files would be grouped and prepared (genome names, types,
+  NCBI files, ignored files, warnings), without renaming files or creating anything; the result is also
+  printed as one JSON line ('EasyCGTree_DRY_RUN_JSON=...').
+- Program locations can be set by environment variables (EasyCGTree.pl, EasyCGTree_SNP.pl, BuildHMM.pl):
+  ECG_BIN=<directory> replaces the 'bin' directory; ECG_<PROGRAM>=<file> sets one program, e.g.
+  ECG_IQTREE3, ECG_HMMSEARCH, ECG_MUSCLE5, ECG_FASTTREEMP, ECG_ASTRAL_WEIGHTED (name in upper case, other
+  characters as '_'). They are passed on to scripts started by other scripts. 'tree_app-options.txt' is read
+  from ECG_BIN if it is there, otherwise from the 'bin' directory of EasyCGTree.
+- EasyCGTree.pl prints its start banner after reading the options (so '-options_json' prints only JSON).
+
+Output directory and threads (all five scripts)
+-----------------------------------------------
+- New option '-outdir <dir>' (EasyCGTree.pl, EasyCGTree_SNP.pl, EasyCGTree_SpecificSNP.pl, Gene_Prevelence.pl,
+  BuildHMM.pl): all results (working directory '<input>_TEM', trees, tables, log files) are written there,
+  with the same layout as before. Default: the directory that contains the input directory (as before).
+  The directory is created if needed; scripts that call other scripts pass it on. For BuildHMM.pl it is
+  used for the summary, log and working files; the HMM database still goes to EasyCGTree/HMM.
+  A later task must be given the same '-outdir' as the earlier ones (it reads '<outdir>/<input>_TEM').
+- '-thread' larger than the number of CPU cores: the scripts no longer stop; they use the number of cores
+  and print a warning (EasyCGTree.pl, EasyCGTree_SNP.pl, BuildHMM.pl).
+- EasyCGTree.pl '-task predict' writes its log as '<input>.predict_<date>.log' (no HMM/tree in the name).
+- '-task' is unchanged: 'all' or one task. (The GUI runs several tasks as one command per task.)
+
+trimAl 'nogaps' (EasyCGTree.pl, EasyCGTree_SNP.pl)
+------------------------------------------------
+- New value '-trim nogaps' (trimAl '-nogaps': every column with a gap is removed; 'nogap' is accepted too).
+- If no column of a gene alignment is left after trimming (trimAl then writes no file), the gene is skipped with
+  a warning (listed in trimAl_Details.txt with length 0) instead of stopping the run; the run stops only if no
+  alignment at all is left.
+
+BuildHMM.pl
+-----------
+- Without '-name', the database is named after the gene family directory, with characters other than letters,
+  digits, '.', '_' and '-' replaced by '_' (a directory name with spaces no longer stops the script).
+
+Strains removed by the screening; thread default
+------------------------------------------------
+- EasyCGTree_SNP.pl: a strain given with '-ignore' that is not in the alignments because it was removed by the
+  genome screening ('-genome_cutoff') is reported with a NOTE and the run continues (before: error "not found").
+  A '-ref' strain removed by the screening stops the run with a clear message (choose another reference or a
+  lower '-genome_cutoff').
+- EasyCGTree_SpecificSNP.pl: outgroup strains removed by the screening are reported with a WARNING and the tree
+  is rooted with the remaining outgroup strains; if none remains, the run stops with a clear message.
+- The names given by '-dry_run' are the same as the genome names used in the run (both come from the same
+  input planning); this was checked with file names containing spaces, brackets, dots, '#', upper case
+  extensions and NCBI files.
+- '-thread' warning: printed only when '-thread' was given. If the default (4) is larger than the number of CPU
+  cores, the number of cores is used without a warning (EasyCGTree.pl, EasyCGTree_SNP.pl, BuildHMM.pl).
+
+Backups of results with the same name; record of the SNP settings
+-----------------------------------------------------------------
+- EasyCGTree.pl (supermatrix, supertree and consensus trees), EasyCGTree_SNP.pl (snp.fas, snp_positions.txt,
+  snp_genes.txt, snp_distance.txt, SNP trees) and EasyCGTree_SpecificSNP.pl (all four outputs): an existing
+  result file with the same name is no longer overwritten but renamed to '<file>.<date of the file>.bak'.
+  With a new SNP extraction, the SNP trees of the old extraction are backed up too (also with '-no_tree'), so
+  no tree that belongs to an older SNP alignment is left under the current name.
+- EasyCGTree_SNP.pl writes the settings of each SNP extraction to EasyCGTree_record.txt (snp_done, snp_hmm,
+  snp_genes, snp_ignore, snp_max_missing, snp_aln, snp_ref). EasyCGTree_GUI uses them to decide whether the
+  extraction must be repeated.
+
+Gene_Prevelence.pl: shared best hits
+------------------------------------
+- New table '<input>.<hmm>.shared_hits.txt': pairs of genes (HMMs) whose best hits are the same protein in some
+  genomes (e.g. HMMs of two domains of one protein, or paralogs one of which is missing). EasyCGTree uses the
+  best hit of each gene, so such a protein is used twice. Columns: genomes in which it is used twice, genomes
+  in which the best hits differ, pattern ('always one protein' or 'mixed'), genome:protein.
+- In gene_prevalence.txt and gene_copies.txt these proteins are marked with '*' (with a note at the end of the
+  tables). A summary is printed on the screen and in the log.
+
+Third-party programs of the 5.0 packages
+----------------------------------------
+HMMER 3.4, Prodigal 2.6.3, MUSCLE 5.3, trimAl 1.5.1, FastTree 2.2 (FastTreeMP), IQ-TREE 3.1.4 (iqtree3) and
+wASTRAL of ASTER 1.25 (file name 'astral-weighted'); see bin/THIRD_PARTY.txt for their licenses and sources.

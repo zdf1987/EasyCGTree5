@@ -1,0 +1,22 @@
+Third-party programs in this folder
+===================================
+
+EasyCGTree (GPL-3.0) calls the following programs. They are redistributed here unchanged (or built
+unchanged from their source code) under their own licenses; see each project for its source code
+and full license text.
+
+Program (file name in bin)       Version   License                     Source
+-------------------------------------------------------------------------------------------------------
+HMMER (hmmsearch, hmmbuild)      3.4       BSD-3-Clause                http://hmmer.org/
+Prodigal (prodigal)              2.6.3     GPL-3.0                     https://github.com/hyattpd/Prodigal
+MUSCLE (muscle5)                 5.3       GPL-3.0                     https://github.com/rcedgar/muscle
+trimAl (trimal)                  1.5.1     GPL-3.0                     https://github.com/inab/trimal
+FastTree (FastTreeMP)            2.2.0     GPL-3.0                     https://github.com/morgannprice/fasttree
+IQ-TREE (iqtree3)                3.1.4     GPL-2.0                     https://github.com/iqtree/iqtree3
+ASTER wASTRAL (astral-weighted)  1.25      AGPL-3.0                    https://github.com/chaoszhang/ASTER
+
+Notes
+- astral-weighted is the program 'wastral' (Weighted ASTRAL) of ASTER, renamed to the file name used by
+  EasyCGTree.
+- Windows: libomp.dll (LLVM OpenMP runtime, Apache-2.0 WITH LLVM-exception) is needed by muscle5.exe and
+  FastTreeMP.exe; libiomp5md.dll (Intel OpenMP runtime) is shipped with IQ-TREE and needed by iqtree3.exe.

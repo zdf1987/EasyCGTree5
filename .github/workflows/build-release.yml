@@ -1,0 +1,99 @@
+# Builds the four program packages of EasyCGTree 5.0 on GitHub's machines:
+#   EasyCGTree5-Linux-x64.tar.gz, EasyCGTree5-Windows-x64.zip, EasyCGTree5-macOS-arm64.zip, EasyCGTree5-macOS-x64.zip
+# Each package contains the scripts, EasyCGTree_GUI (built here with PyInstaller), the third-party programs
+# ('bin'), the folder 'HMM' with its README only, the manuals (doc/*.pdf), README.md and LICENSE.
+#
+# Third-party programs:
+#   - macOS: built here from their source code (build/build_macos_bin.sh).
+#   - Linux and Windows: taken from the release with the tag 'bin-programs' of this repository, which must
+#     contain the assets 'bin-linux-x64.zip' and 'bin-windows-x64.zip' (the programs at the top level of
+#     each zip). Create that release once (it can be marked as a pre-release) before running this workflow.
+#
+# Run it in the 'Actions' tab ('Build release packages' -> 'Run workflow'); download the packages under
+# 'Artifacts' of the finished run and attach them to the release of EasyCGTree.
+name: Build release packages
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            pkg: EasyCGTree5-Linux-x64
+            bin: linux-x64
+            args: --onefile
+          - os: windows-latest
+            pkg: EasyCGTree5-Windows-x64
+            bin: windows-x64
+            args: --onefile
+          - os: macos-14
+            pkg: EasyCGTree5-macOS-arm64
+            bin: macos
+            args: ""
+          # Intel Mac. GitHub is retiring its Intel macOS machines: if this job reports that no runner is
+          # available, delete these four lines.
+          - os: macos-13
+            pkg: EasyCGTree5-macOS-x64
+            bin: macos
+            args: ""
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build EasyCGTree_GUI
+        run: |
+          python -m pip install --upgrade pip
+          pip install "PySide6-Essentials>=6.5" "pyinstaller>=6"
+          pyinstaller --noconfirm --clean --windowed ${{ matrix.args }} --name EasyCGTree_GUI EasyCGTree_GUI.py
+
+      - name: Third-party programs (Linux, Windows)
+        if: runner.os != 'macOS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download bin-programs --repo "${{ github.repository }}" -p "bin-${{ matrix.bin }}.zip"
+          mkdir binx && unzip -q "bin-${{ matrix.bin }}.zip" -d binx
+
+      - name: Third-party programs (macOS, built from source)
+        if: runner.os == 'macOS'
+        run: bash build/build_macos_bin.sh binx
+
+      - name: Assemble the package
+        run: |
+          P="${{ matrix.pkg }}"
+          mkdir -p "$P/bin" "$P/HMM" "$P/doc"
+          cp EasyCGTree.pl EasyCGTree_SNP.pl EasyCGTree_SpecificSNP.pl BuildHMM.pl Gene_Prevelence.pl \
+             README.md LICENSE "$P/"
+          cp HMM/README.txt "$P/HMM/"
+          cp doc/*.pdf "$P/doc/"
+          cp -R binx/. "$P/bin/"
+          cp bin/tree_app-options.txt bin/THIRD_PARTY.txt "$P/bin/"
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            cp -R dist/EasyCGTree_GUI.app "$P/"
+          elif [ "$RUNNER_OS" = "Windows" ]; then
+            cp dist/EasyCGTree_GUI.exe "$P/"
+          else
+            cp dist/EasyCGTree_GUI "$P/"
+          fi
+          if [ "$RUNNER_OS" != "Windows" ]; then chmod +x "$P"/bin/* "$P"/*.pl; chmod -x "$P"/bin/*.txt; fi
+          case "$RUNNER_OS" in
+            Linux)   tar czf "$P.tar.gz" "$P"; echo "OUT=$P.tar.gz" >> "$GITHUB_ENV" ;;
+            Windows) 7z a -tzip -bd "$P.zip" "$P" > /dev/null; echo "OUT=$P.zip" >> "$GITHUB_ENV" ;;
+            macOS)   ditto -c -k --keepParent "$P" "$P.zip"; echo "OUT=$P.zip" >> "$GITHUB_ENV" ;;
+          esac
+          ls -la "$P" "$P/bin"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.pkg }}
+          path: ${{ env.OUT }}

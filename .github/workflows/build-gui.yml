@@ -1,0 +1,52 @@
+# Builds EasyCGTree_GUI for Linux, Windows and macOS (Apple silicon and Intel) on GitHub's machines.
+# Run it in the 'Actions' tab of the repository ('Build EasyCGTree_GUI' -> 'Run workflow').
+# To build the complete program packages instead, use 'Build release packages' (build-release.yml).
+# The programs can be downloaded as 'Artifacts' at the bottom of the finished run.
+name: Build EasyCGTree_GUI
+on:
+  workflow_dispatch:
+  push:
+    tags: ["gui-*"]
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            name: linux-x86_64
+            args: --onefile
+            out: dist/EasyCGTree_GUI
+          - os: windows-latest
+            name: windows-x64
+            args: --onefile
+            out: dist/EasyCGTree_GUI.exe
+          - os: macos-14
+            name: macos-arm64
+            args: ""
+            out: dist/EasyCGTree_GUI.app
+          # Intel Mac. GitHub is retiring its Intel macOS machines: if this job reports that no runner is
+          # available, delete these four lines (the Apple silicon app above is not affected).
+          - os: macos-13
+            name: macos-x86_64
+            args: ""
+            out: dist/EasyCGTree_GUI.app
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PySide6 and PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install "PySide6-Essentials>=6.5" "pyinstaller>=6"
+      - name: Build
+        run: pyinstaller --noconfirm --clean --windowed ${{ matrix.args }} --name EasyCGTree_GUI EasyCGTree_GUI.py
+      - name: Pack the macOS app (keeps its file permissions)
+        if: runner.os == 'macOS'
+        run: cd dist && ditto -c -k --keepParent EasyCGTree_GUI.app EasyCGTree_GUI.app.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EasyCGTree_GUI-${{ matrix.name }}
+          path: ${{ runner.os == 'macOS' && 'dist/EasyCGTree_GUI.app.zip' || matrix.out }}
