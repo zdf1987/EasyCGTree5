@@ -34,9 +34,9 @@ jobs:
             pkg: EasyCGTree5-macOS-arm64
             bin: macos
             args: ""
-          # Intel Mac. GitHub is retiring its Intel macOS machines: if this job reports that no runner is
+          # Intel Mac (GitHub offers Intel macOS machines only for a limited time): if this job reports that no runner is
           # available, delete these four lines.
-          - os: macos-13
+          - os: macos-15-intel
             pkg: EasyCGTree5-macOS-x64
             bin: macos
             args: ""
