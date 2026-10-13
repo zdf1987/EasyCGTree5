@@ -1,5 +1,5 @@
-"""Draws the EasyCGTree icon (a cladogram inside the two strands of a genome with core genes, on a navy
-tile) and writes the icon files:
+"""Draws the EasyCGTree icon (a cladogram on a light disc inside the two strands of a genome with core
+genes) and writes the icon files:
 icon.png (1024 px), icon.ico (Windows), icon.icns (macOS), and icon_b64.txt (256 px PNG as base64, which
 is pasted into EasyCGTree_GUI.py as the window icon). Needs Pillow:  python3 make_icon.py"""
 import base64
@@ -10,44 +10,43 @@ from PIL import Image, ImageDraw
 
 S = 4                      # supersampling
 N = 1024 * S
-NAVY_TOP, NAVY_BOTTOM = (36, 92, 140), (19, 52, 84)
+NAVY = (31, 78, 121)
+DISC = (244, 247, 250)     # light disc
+BLOCK = 1 / 3              # length of the core-gene blocks (fraction of the first design)
 LINE = (255, 255, 255)
 TIP = (110, 196, 184)      # muted teal
 AMBER = (232, 176, 92)
 
 
 def draw():
-    """Two rings (the two strands of a genome) with white blocks (core genes) around a cladogram."""
-    grad = Image.new("RGB", (1, N))
-    for y in range(N):
-        t = y / (N - 1)
-        grad.putpixel((0, y), tuple(round(a + (b - a) * t) for a, b in zip(NAVY_TOP, NAVY_BOTTOM)))
-    grad = grad.resize((N, N))
-    mask = Image.new("L", (N, N), 0)
-    m = 100 * S
-    ImageDraw.Draw(mask).rounded_rectangle([m, m, N - m, N - m], radius=185 * S, fill=255)
+    """A light disc inside two rings (the two strands of a genome) with short navy blocks (core genes),
+    and a navy cladogram on the disc. No background tile: it works on light and dark backgrounds."""
     img = Image.new("RGBA", (N, N), (0, 0, 0, 0))
-    img.paste(grad, (0, 0), mask)
     d = ImageDraw.Draw(img)
 
     def p(v):
         return v * S
-    cx, cy = 512, 512
-    R1, R2, W = 330, 282, 26                 # outer and inner strand
+    cx = cy = 512
+    R1, R2, W = 420, 362, 34                 # outer and inner strand
+    R0 = R2 - W / 2 - 6
+    d.ellipse([p(cx - R0), p(cy - R0), p(cx + R0), p(cy + R0)], fill=DISC)
     for R, col in ((R1, TIP), (R2, AMBER)):
         d.ellipse([p(cx - R), p(cy - R), p(cx + R), p(cy + R)], outline=col, width=p(W))
     genes = {R1: ((10, 30), (70, 88), (150, 172), (232, 246), (290, 312)),
              R2: ((40, 58), (110, 128), (196, 214), (262, 278), (332, 350))}
     for R, arcs in genes.items():
-        box = [p(cx - R - 7), p(cy - R - 7), p(cx + R + 7), p(cy + R + 7)]
+        box = [p(cx - R - 8), p(cy - R - 8), p(cx + R + 8), p(cy + R + 8)]
         for a0, a1 in arcs:
-            d.arc(box, a0, a1, fill=LINE, width=p(W + 14))
-    w = p(30)
+            m, h = (a0 + a1) / 2, (a1 - a0) * BLOCK / 2
+            d.arc(box, m - h, m + h, fill=NAVY, width=p(W + 16))
+    w = p(38)
+    k = 1.28                                   # the tree is drawn on a 1024 grid and scaled around the centre
 
     def seg(x1, y1, x2, y2):
-        d.line([(p(x1), p(y1)), (p(x2), p(y2))], fill=LINE, width=w)
+        x1, y1, x2, y2 = cx + (x1 - 512) * k, cy + (y1 - 512) * k, cx + (x2 - 512) * k, cy + (y2 - 512) * k
+        d.line([(p(x1), p(y1)), (p(x2), p(y2))], fill=NAVY, width=w)
         for x, y in ((x1, y1), (x2, y2)):
-            d.ellipse([p(x) - w / 2, p(y) - w / 2, p(x) + w / 2, p(y) + w / 2], fill=LINE)
+            d.ellipse([p(x) - w / 2, p(y) - w / 2, p(x) + w / 2, p(y) + w / 2], fill=NAVY)
     # topology ((A,B),(C,(D,E))), root on the left
     tips = [372, 442, 512, 582, 652]
     tipx = 660
@@ -65,9 +64,10 @@ def draw():
     seg(n3[0], tips[3], n3[0], tips[4])
     for y, x0 in zip(tips, (n1[0], n1[0], n2[0], n3[0], n3[0])):
         seg(x0, y, tipx, y)
-    r = p(22)
+    r = p(28)
     for y in tips:
-        d.ellipse([p(tipx + 16) - r, p(y) - r, p(tipx + 16) + r, p(y) + r], fill=TIP, outline=LINE, width=p(7))
+        X, Y = cx + (tipx + 16 - 512) * k, cy + (y - 512) * k
+        d.ellipse([p(X) - r, p(Y) - r, p(X) + r, p(Y) + r], fill=TIP, outline=LINE, width=p(8))
     return img.resize((1024, 1024), Image.LANCZOS)
 
 
