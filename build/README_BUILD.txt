@@ -38,6 +38,8 @@ Using the program
    (Linux/macOS: already installed; Windows: e.g. Strawberry Perl, or a portable Perl set in the settings).
 
 Notes
+   - Icon: icon.ico (Windows) and icon.icns (macOS) are used by the build scripts and workflows; they are drawn
+     by make_icon.py, which also prints the base64 text of the window icon (ICON_PNG_B64 in EasyCGTree_GUI.py).
    - Size: about 50-80 MB per program (Python and the Qt libraries are included).
    - Windows/Linux programs are single files; they start a little slower (a few seconds) because they unpack
      themselves first.

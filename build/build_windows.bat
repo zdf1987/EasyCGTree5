@@ -6,7 +6,7 @@ py -3 -m venv .venv || goto :error
 call .venv\Scripts\activate.bat || goto :error
 python -m pip install --upgrade pip || goto :error
 pip install "PySide6-Essentials>=6.5" "pyinstaller>=6" || goto :error
-pyinstaller --noconfirm --clean --onefile --windowed --name EasyCGTree_GUI ..\EasyCGTree_GUI.py || goto :error
+pyinstaller --noconfirm --clean --onefile --windowed --icon icon.ico --name EasyCGTree_GUI ..\EasyCGTree_GUI.py || goto :error
 echo.
 echo Done: %cd%\dist\EasyCGTree_GUI.exe
 pause

@@ -19,17 +19,17 @@ jobs:
             out: dist/EasyCGTree_GUI
           - os: windows-latest
             name: windows-x64
-            args: --onefile
+            args: --onefile --icon build/icon.ico
             out: dist/EasyCGTree_GUI.exe
           - os: macos-14
             name: macos-arm64
-            args: ""
+            args: --icon build/icon.icns
             out: dist/EasyCGTree_GUI.app
           # Intel Mac (GitHub offers Intel macOS machines only for a limited time): if this job reports that no runner is
           # available, delete these four lines (the Apple silicon app above is not affected).
           - os: macos-15-intel
             name: macos-x86_64
-            args: ""
+            args: --icon build/icon.icns
             out: dist/EasyCGTree_GUI.app
     runs-on: ${{ matrix.os }}
     steps:

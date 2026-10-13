@@ -29,17 +29,17 @@ jobs:
           - os: windows-latest
             pkg: EasyCGTree5-Windows-x64
             bin: windows-x64
-            args: --onefile
+            args: --onefile --icon build/icon.ico
           - os: macos-14
             pkg: EasyCGTree5-macOS-arm64
             bin: macos
-            args: ""
+            args: --icon build/icon.icns
           # Intel Mac (GitHub offers Intel macOS machines only for a limited time): if this job reports that no runner is
           # available, delete these four lines.
           - os: macos-15-intel
             pkg: EasyCGTree5-macOS-x64
             bin: macos
-            args: ""
+            args: --icon build/icon.icns
     runs-on: ${{ matrix.os }}
     defaults:
       run:

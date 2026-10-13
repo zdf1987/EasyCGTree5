@@ -25,14 +25,16 @@ Overview
   '?' next to an option explains it.
 - Gene prevalence (Gene_Prevelence.pl) is part of the Main pipeline tab (after the run, or alone) and of
   the SNP analysis tab.
+- Layout: four panels. Top: parameters (left) and Status/Files (right); bottom: command line with Run/Stop
+  (left) and log (right). Drag the bars between the panels to resize the top and bottom halves, and the two
+  panels of each half; the sizes are kept (for all tabs) for the next start.
 - Command line: the command(s) that 'Run' will execute; 'Concise' leaves out default values, 'Full'
   shows all options. 'Copy' copies them for a terminal (Windows: PowerShell syntax).
 - Output directory: all results go there ('-outdir'); empty = the folder that contains the input folder.
-- Files: the buttons 'Output' / 'Input' (HMM tab: 'Gene families' / 'Output' / 'HMM directory') switch
-  the file view; the path is shown next to them. Double-click opens folders, tables (shown in the GUI) and
-  other files (system application).
-- Status follows the chosen place: Output = what has been done in '<input>_TEM' (EasyCGTree_record.txt);
-  Input = genomes, sequence types, number and total length of the sequences per file.
+- Status / Files: two pages of the right panel. The buttons 'Output' / 'Input' (HMM tab: 'Gene families' /
+  'Output' / 'HMM directory') choose the folder for both pages. Status: Output = what has been done in
+  '<input>_TEM' (EasyCGTree_record.txt); Input = genomes, sequence types, number and total length of the
+  sequences per file. Files: double-click opens folders, tables (shown in the GUI) and other files.
 - Task: tick the tasks; ticking two tasks also ticks the ones between them; all five = 'all'. Several tasks
   (not all) are run as one EasyCGTree command per task, one after the other (shown in Command line).
 - If a CDS prediction with the same input files and settings already exists, a yellow notice is shown and

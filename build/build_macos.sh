@@ -8,7 +8,7 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install --upgrade pip
 pip install "PySide6-Essentials>=6.5" "pyinstaller>=6"
-pyinstaller --noconfirm --clean --windowed --name EasyCGTree_GUI ../EasyCGTree_GUI.py
+pyinstaller --noconfirm --clean --windowed --icon icon.icns --name EasyCGTree_GUI ../EasyCGTree_GUI.py
 echo
 echo "Done: $(pwd)/dist/EasyCGTree_GUI.app"
 echo "The app is not signed: at the first start, right-click it and choose 'Open'."
