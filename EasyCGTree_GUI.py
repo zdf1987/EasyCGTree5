@@ -1289,7 +1289,8 @@ class HelpButton(QToolButton):
         self.key = key
         self.kw = kw
         self.setText("?")
-        self.setAutoRaise(True)
+        self.setObjectName("helpButton")
+        self.setFixedSize(18, 18)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.clicked.connect(self.show_help)
 
@@ -1427,12 +1428,14 @@ class Param:
             self.widget = self.field
         elif k == "int":
             self.field = GSpinBox()
+            self.field.setMinimumWidth(100)
             self.field.setRange(self.minimum if self.minimum is not None else 0, self.maximum if self.maximum is not None else 1000000)
             self.field.setValue(int(self.default))
             self.field.valueChanged.connect(self.tab.changed)
             self.widget = self.field
         elif k == "float":
             self.field = GDoubleSpinBox()
+            self.field.setMinimumWidth(100)
             self.field.setDecimals(self.decimals)
             self.field.setRange(self.minimum if self.minimum is not None else 0.0, self.maximum if self.maximum is not None else 1e9)
             self.field.setSingleStep(self.step or 0.05)
@@ -1442,6 +1445,8 @@ class Param:
         elif k in ("efloat", "text"):
             self.field = QLineEdit()
             self.field.setMinimumWidth(60)
+            if k == "efloat":
+                self.field.setFixedWidth(120)
             if self.default is not None:
                 self.field.setText(str(self.default))
             if self.optional:
@@ -1458,7 +1463,9 @@ class Param:
                 self.field.addItem(tr(lkey) if lkey else value, value)
                 if lkey:
                     i18n.add(lambda t, f=self.field, i=idx: f.setItemText(i, t), lkey)
-            narrow_combo(self.field)
+            # as wide as its longest choice (recomputed when the language changes)
+            self.field.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+            fit_popup(self.field)
             self.set_value(self.default)
             self.field.currentIndexChanged.connect(self.tab.changed)
             self.widget = self.field
@@ -1500,6 +1507,10 @@ class Param:
                 lay.addWidget(b)
             self.all_label = QLabel()
             self.all_label.setStyleSheet("color: #2a6f2a; font-weight: bold")
+            sp = self.all_label.sizePolicy()
+            sp.setRetainSizeWhenHidden(True)        # the '?' after it does not move
+            self.all_label.setSizePolicy(sp)
+            i18n.add(self.all_label.setText, "tasks_all")
             lay.addWidget(self.all_label)
             self.field = self.widget
             self.update_all_label()
@@ -1583,7 +1594,6 @@ class Param:
     def update_all_label(self):
         if self.kind == "tasks":
             on = all(b.isChecked() for b in self.boxes)
-            self.all_label.setText(tr("tasks_all") if on else "")
             self.all_label.setVisible(on)
 
     def set_active(self, on):
@@ -2543,22 +2553,20 @@ class BaseTab(QWidget):
         bottom.setHandleWidth(8)
         cg, chead, cl = self.panel("cmdline")
         # first row: title and Concise|Full
-        self.rb_concise = QToolButton()
-        self.rb_full = QToolButton()
+        self.rb_concise = QRadioButton()
+        self.rb_full = QRadioButton()
         cbg = QButtonGroup(self)
         cbg.setExclusive(True)
-        for b, key, pos in ((self.rb_concise, "concise", "first"), (self.rb_full, "full", "last")):
-            b.setObjectName("place")
-            b.setProperty("pos", pos)
-            b.setCheckable(True)
+        for b, key in ((self.rb_concise, "concise"), (self.rb_full, "full")):
             self.i18n.add(b.setText, key)
             self.i18n.add(b.setToolTip, key + "_tip")
             cbg.addButton(b)
         (self.rb_full if win.config.full_cmd else self.rb_concise).setChecked(True)
         self.rb_full.toggled.connect(self.changed)
-        chead.insertSpacing(1, 8)
+        chead.insertSpacing(1, 14)
         chead.insertWidget(2, self.rb_concise)
-        chead.insertWidget(3, self.rb_full)
+        chead.insertSpacing(3, 6)
+        chead.insertWidget(4, self.rb_full)
         # second row: Run, Stop and the state of the run on the left, Copy on the right
         brow = QHBoxLayout()
         self.run_btn = QPushButton()
@@ -2705,12 +2713,26 @@ class BaseTab(QWidget):
             if isinstance(item, Param):
                 lab, w, hb = item.build()
                 self.params[item.key] = item
-                if item.kind == "bool":
-                    grid.addWidget(w, r, 0, 1, 2)
-                else:
+                # the '?' follows the field; numbers and choices keep their own width
+                if item.kind == "tasks":
+                    w.layout().addWidget(hb)          # after the task boxes and '= all'
                     grid.addWidget(lab, r, 0)
-                    grid.addWidget(w, r, 1)
-                grid.addWidget(hb, r, 2)
+                    grid.addWidget(w, r, 1, 1, 2)
+                else:
+                    cell = QWidget()
+                    hl = QHBoxLayout(cell)
+                    hl.setContentsMargins(0, 0, 0, 0)
+                    hl.setSpacing(6)
+                    short = item.kind in ("bool", "int", "float", "efloat", "choice")
+                    hl.addWidget(w, 0 if short else 1)
+                    hl.addWidget(hb, 0, Qt.AlignmentFlag.AlignVCenter)
+                    if short:
+                        hl.addStretch(1)
+                    if item.kind == "bool":
+                        grid.addWidget(cell, r, 0, 1, 3)
+                    else:
+                        grid.addWidget(lab, r, 0)
+                        grid.addWidget(cell, r, 1, 1, 2)
             else:  # a widget spanning the row
                 grid.addWidget(item, r, 0, 1, 3)
             r += 1
@@ -2736,6 +2758,7 @@ class BaseTab(QWidget):
             for p in self.params.values():
                 if isinstance(p.field, QComboBox):
                     fit_popup(p.field)
+                    p.field.updateGeometry()
         except (TypeError, ValueError, AttributeError):
             pass
 
@@ -3859,6 +3882,9 @@ QPushButton#runButton:disabled { background: #9fb1c4; border-color: #9fb1c4; col
 QPushButton#stopButton { color: %(bad)s; border-color: %(bad)s; background: white; padding: 5px 18px; }
 QPushButton#stopButton:hover { background: #f8e9e9; }
 QPushButton#stopButton:disabled { color: #c9b3b3; border-color: #e3d3d3; background: #f7f5f5; }
+QToolButton#helpButton { background: %(accent_soft)s; color: %(accent)s; border: 1px solid #c5d5e6;
+                         border-radius: 9px; font-weight: 700; padding: 0px; }
+QToolButton#helpButton:hover { background: #cddcee; border-color: %(accent)s; }
 QLabel#stateLabel { color: %(muted)s; }
 QLabel#stateLabel[state="running"] { color: %(accent)s; font-weight: 600; }
 QLabel#stateLabel[state="ok"] { color: %(ok)s; font-weight: 600; }
